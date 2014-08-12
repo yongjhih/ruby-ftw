@@ -324,7 +324,13 @@ class FTW::Agent
         p :error => error
         raise error
       end
+
       response = request.execute(connection)
+
+      if response.nil?
+          tries -= 1
+          retry if tries > 0
+      end
     rescue EOFError => e
       tries -= 1
       @logger.warn("Error while sending request, will retry.",
@@ -335,7 +341,7 @@ class FTW::Agent
 
     redirects = 0
     # Follow redirects
-    while response.redirect? and response.headers.include?("Location")
+    while !response.nil? and response.redirect? and response.headers.include?("Location")
       # RFC2616 section 10.3.3 indicates HEAD redirects must not include a
       # body. Otherwise, the redirect response can have a body, so let's
       # throw it away.
@@ -374,7 +380,7 @@ class FTW::Agent
     end # while being redirected
 
     # RFC 2616 section 9.4, HEAD requests MUST NOT have a message body.
-    if request.method != "HEAD"
+    if !response.nil? and request.method != "HEAD"
       response.body = connection
     else
       connection.release
